@@ -57,7 +57,6 @@ async def predict(file: UploadFile = File(...)):
     
     return {
         "filename": file.filename,
-        "filename": file.filename,
         "prediction": CLASS_NAMES[predicted_idx],
         "confidence": f"{confidence:.2%}",
         "class_index": int(predicted_idx)
