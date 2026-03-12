@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-tensorflow==2.15.0
+tensorflow-cpu
 tf_keras
 pillow
 numpy<2.0.0
