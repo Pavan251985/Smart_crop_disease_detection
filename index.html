@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="AI-powered crop disease detection for Strawberry, Corn, Apple, Bell Pepper, Cherry, Tomato, Grape, Peach, and Potato. Get instant disease diagnosis with treatment advice." />
+  <title>Smart Crop Disease Detector 🌿</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌿</text></svg>">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <!-- Firebase SDKs (compat v9) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+
+<body>
+
+  <!-- ════════════════════════════════════
+     LOADING OVERLAY
+════════════════════════════════════ -->
+  <div id="loading-overlay" class="loading-overlay" role="status" aria-live="polite">
+    <div class="loader-ring"></div>
+    <p data-i18n="loading-text">🔬 Analyzing leaf image…</p>
+  </div>
+
+  <!-- ════════════════════════════════════
+     MAIN DASHBOARD
+════════════════════════════════════ -->
+  <div id="dashboard">
+
+    <!-- Header -->
+    <header class="header" role="banner">
+      <div class="header-brand">
+        <span class="logo">🌿</span>
+        <div>
+          <h1 data-i18n="app-title">Smart Crop Disease Detector</h1>
+          <p data-i18n="app-subtitle">AI-powered plant health diagnosis</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Login Button -->
+        <button id="auth-btn" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.85rem;"
+          data-i18n="login-btn">
+          Login
+        </button>
+        <!-- Language Toggle -->
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button class="lang-btn active" data-lang="en" aria-pressed="true">EN</button>
+          <button class="lang-btn" data-lang="kn" aria-pressed="false">ಕನ್ನಡ</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div style="max-width:1200px;margin:1.5rem auto;padding:0 1.25rem">
+      <div class="card info-card">
+        <div class="info-grid">
+          <div class="info-stat">
+            <div class="stat-num">9</div>
+            <div class="stat-label" data-i18n="stat-crops">Supported Crops</div>
+          </div>
+          <div class="info-stat">
+            <div class="stat-num">45</div>
+            <div class="stat-label" data-i18n="stat-diseases">Disease Classes</div>
+          </div>
+          <div class="info-stat">
+            <div class="stat-num">5</div>
+            <div class="stat-label" data-i18n="stat-types">Disease Types</div>
+          </div>
+          <div class="info-stat">
+            <div class="stat-num">2</div>
+            <div class="stat-label" data-i18n="stat-languages">Languages</div>
+          </div>
+          <div class="info-stat">
+            <div class="stat-num">AI</div>
+            <div class="stat-label" data-i18n="stat-powered">Powered</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <main class="main-container">
+
+      <!-- ── 1. UPLOAD CARD ───────────────────────────────────── -->
+      <section class="card upload-card" aria-labelledby="upload-heading">
+        <div class="card-header">
+          <div class="icon">📷</div>
+          <h2 id="upload-heading" data-i18n="upload-heading">Upload Leaf Image</h2>
+        </div>
+
+        <div id="upload-zone" class="upload-zone" role="button" tabindex="0"
+          aria-label="Upload leaf image. Click or drag and drop an image here."
+          onkeydown="if(event.key==='Enter'||event.key===' ')this.click()">
+          <img id="image-preview" class="image-preview" alt="Uploaded leaf preview" />
+          <div id="upload-placeholder" class="upload-placeholder">
+            <span class="upload-icon">🍃</span>
+            <p id="upload-hint" data-i18n="upload-hint">Click or drag &amp; drop your leaf photo here</p>
+            <span id="upload-formats" data-i18n="upload-formats">Supports: JPG, PNG, WebP · Max 10 MB</span>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" aria-hidden="true" />
+
+        <div class="upload-actions">
+          <button class="btn btn-secondary" id="clear-btn" data-i18n="clear-btn">🗑️ Clear</button>
+          <button class="btn btn-primary" id="analyze-btn" disabled data-i18n="analyze-btn">🔬 Analyze Disease</button>
+        </div>
+
+        <!-- Supported crops -->
+        <div style="margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border)">
+          <p id="crops-label"
+            style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem"
+            data-i18n="crops-label">Supported Crops</p>
+          <div class="command-chips">
+            <span class="chip">🍓 <span data-i18n="crop-strawberry">Strawberry</span></span>
+            <span class="chip">🌽 <span data-i18n="crop-corn">Corn</span></span>
+            <span class="chip">🍎 <span data-i18n="crop-apple">Apple</span></span>
+            <span class="chip">🫑 <span data-i18n="crop-pepper">Bell Pepper</span></span>
+            <span class="chip">🍒 <span data-i18n="crop-cherry">Cherry</span></span>
+            <span class="chip">🍅 <span data-i18n="crop-tomato">Tomato</span></span>
+            <span class="chip">🍇 <span data-i18n="crop-grape">Grape</span></span>
+            <span class="chip">🍑 <span data-i18n="crop-peach">Peach</span></span>
+            <span class="chip">🥔 <span data-i18n="crop-potato">Potato</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 2. RESULT CARD ───────────────────────────────────── -->
+      <section id="result-card" class="card result-card" aria-labelledby="result-heading" aria-live="polite">
+        <div class="card-header">
+          <div class="icon">🧬</div>
+          <h2 id="result-heading" data-i18n="result-heading">Detection Result</h2>
+        </div>
+
+        <!-- Banner -->
+        <div id="result-banner" class="result-banner healthy">
+          <span id="disease-emoji" class="disease-emoji">🌱</span>
+          <div class="disease-info">
+            <h3 id="result-disease">–</h3>
+            <p id="result-crop">–</p>
+            <p id="result-confidence-val">–</p>
+          </div>
+          <div class="confidence-bar-wrapper">
+            <div class="confidence-label" data-i18n="confidence-label">Confidence Score</div>
+            <div class="confidence-track">
+              <div id="confidence-fill" class="confidence-fill" style="width:0%" role="progressbar" aria-valuenow="0"
+                aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+          <div>
+            <div id="severity-label"
+              style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:0.3rem"
+              data-i18n="severity-label">SEVERITY</div>
+            <span id="severity-badge" class="severity-badge severity-none">–</span>
+          </div>
+        </div>
+
+        <!-- Detail Grid -->
+        <div class="result-grid">
+          <div class="result-block">
+            <h4 data-i18n="causes-heading">🦠 Causes</h4>
+            <ul id="causes-list"></ul>
+          </div>
+          <div class="result-block">
+            <h4 data-i18n="treatment-heading">💊 Treatment</h4>
+            <ul id="treatment-list"></ul>
+          </div>
+          <div class="result-block">
+            <h4 data-i18n="prevention-heading">🛡️ Prevention</h4>
+            <ul id="prevention-list"></ul>
+          </div>
+          <div class="result-block">
+            <h4 data-i18n="about-heading">ℹ️ About</h4>
+            <p id="about-text" style="font-size:0.82rem;color:var(--text-muted);line-height:1.6" data-i18n="about-text">
+              This diagnosis is AI-generated. Always consult a local agricultural expert before applying treatments.
+            </p>
+            <p id="powered-by" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem"
+              data-i18n="powered-by">
+              🌿 Smart Crop Disease Detector — Powered by TensorFlow.js
+            </p>
+          </div>
+        </div>
+
+        <!-- Speak button inside result -->
+        <button id="read-result-btn" class="btn btn-secondary" style="margin-top:1rem;max-width:220px"
+          data-i18n="read-result-btn">
+          🔊 Read Result Aloud
+        </button>
+      </section>
+
+      <!-- ── 3. VOICE ASSISTANT ────────────────────────────────── -->
+      <section class="card voice-card" aria-labelledby="voice-heading">
+        <div class="card-header">
+          <div class="icon">🎙️</div>
+          <h2 id="voice-heading" data-i18n="voice-heading">Voice Assistant</h2>
+        </div>
+
+        <div class="voice-widget">
+          <button id="mic-btn" class="voice-btn mic" title="Start voice command"
+            aria-label="Start listening for voice command">
+            🎙️
+          </button>
+          <div class="voice-status">
+            <p data-i18n="voice-status">Voice Commands Active</p>
+            <div id="voice-text" class="voice-text" data-i18n="voice-placeholder">Say a command…</div>
+          </div>
+          <button id="speak-btn" class="voice-btn speak" title="Read result aloud"
+            aria-label="Read the detection result aloud">
+            🔊
+          </button>
+        </div>
+
+        <div class="voice-commands">
+          <p data-i18n="en-commands-label">English Commands</p>
+          <div class="command-chips">
+            <span class="chip">"<span data-i18n="cmd-upload">Upload image</span>"</span>
+            <span class="chip">"<span data-i18n="cmd-analyze">Analyze disease</span>"</span>
+            <span class="chip">"<span data-i18n="cmd-result">Tell disease result</span>"</span>
+            <span class="chip">"<span data-i18n="cmd-treatment">Explain treatment</span>"</span>
+            <span class="chip">"<span data-i18n="cmd-history">Show history</span>"</span>
+          </div>
+          <div style="margin-top:0.75rem">
+            <p data-i18n="kn-commands-label">ಕನ್ನಡ ಆದೇಶಗಳು</p>
+            <div class="command-chips">
+              <span class="chip kannada">"ಚಿತ್ರ ಅಪ್ಲೋಡ್ ಮಾಡು"</span>
+              <span class="chip kannada">"ರೋಗದ ವಿವರ ಹೇಳು"</span>
+              <span class="chip kannada">"ಔಷಧಿ ಹೇಳು"</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4. HISTORY ────────────────────────────────────────── -->
+      <section id="history-section" class="card" aria-labelledby="history-heading">
+        <div class="card-header">
+          <div class="icon">📋</div>
+          <h2 id="history-heading" data-i18n="history-heading">Upload History</h2>
+        </div>
+        <div id="history-list" class="history-list" role="list" aria-label="Previous uploads">
+          <div class="history-empty">
+            <div class="empty-icon">📋</div>
+            <p data-i18n="history-loading">Loading history…</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer style="text-align:center;padding:1.5rem;color:rgba(255,255,255,0.4);font-size:0.78rem">
+      <span data-i18n="footer-text">🌿 Smart Crop Disease Detector &nbsp;·&nbsp; Powered by TensorFlow.js + Firebase
+        &nbsp;·&nbsp; English &amp; ಕನ್ನಡ</span>
+    </footer>
+
+  </div><!-- end #dashboard -->
+
+  <!-- Toast Container -->
+  <div id="toast-container" role="status" aria-live="polite"></div>
+
+  <!-- ── Firebase Auth Modal ────────────────────────────── -->
+  <div id="auth-modal" class="modal-overlay">
+    <div class="modal-card">
+      <h2 id="auth-modal-title" data-i18n="login-title">Login / Register</h2>
+      <p data-i18n="login-desc" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+        Enter your mobile number to receive weekly crop monitoring updates.
+      </p>
+
+      <!-- Phone Number Step -->
+      <div id="phone-auth-step">
+        <label for="phone-input" data-i18n="phone-label">Mobile Number</label>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <input type="text" id="phone-country" value="+91"
+            style="width: 60px; text-align: center; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main);" />
+          <input type="tel" id="phone-input" placeholder="10-digit number"
+            style="flex: 1; padding: 0.8rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main);" />
+        </div>
+        <div id="recaptcha-container" style="margin-top: 1rem;"></div>
+        <button id="send-otp-btn" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;"
+          data-i18n="send-otp-btn">
+          Send OTP
+        </button>
+      </div>
+
+      <!-- OTP Verification Step -->
+      <div id="otp-auth-step" style="display: none;">
+        <label for="otp-input" data-i18n="otp-label">Enter 6-digit OTP</label>
+        <input type="text" id="otp-input" placeholder="000000" maxlength="6"
+          style="width: 100%; margin-top: 0.5rem; padding: 0.8rem; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); letter-spacing: 0.5rem; text-align: center; font-size: 1.25rem;" />
+        <button id="verify-otp-btn" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;"
+          data-i18n="verify-otp-btn">
+          Verify OTP
+        </button>
+        <button id="cancel-otp-btn" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;"
+          data-i18n="cancel-btn">
+          Cancel
+        </button>
+      </div>
+
+      <button id="close-modal-btn"
+        style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.25rem;">
+        ✕
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Firebase Config (globals for script.js) ──────────────── -->
+  <script>
+    // TODO: Replace with YOUR real Firebase config values
+    // Get from: Firebase Console → Project Settings → General → Your apps
+    window.firebaseConfig = {
+      apiKey: "AIzaSyC8vxV4zzxiI433AJ2hBA6Syal-Cr8C1GM",
+      authDomain: "smart-crop-detector.firebaseapp.com",
+      projectId: "smart-crop-detector",
+      storageBucket: "smart-crop-detector.firebasestorage.app",
+      messagingSenderId: "361807248691",
+      appId: "1:361807248691:web:fe0036c12b31a2e23cd246"
+    };
+    window.VAPID_KEY = "YOUR_VAPID_KEY_HERE"; // TODO: Replace
+    window.BACKEND_URL = "http://localhost:5000";
+
+    // Init Firebase
+    firebase.initializeApp(window.firebaseConfig);
+  </script>
+
+  <!-- ── Main Application Script ────────────────────────────── -->
+  <script src="script.js"></script>
+</body>
+
+</html>
