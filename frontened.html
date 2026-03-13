@@ -324,7 +324,8 @@
       appId: "1:361807248691:web:fe0036c12b31a2e23cd246"
     };
     window.VAPID_KEY = "YOUR_VAPID_KEY_HERE"; // TODO: Replace
-    window.BACKEND_URL = "http://localhost:5000";
+    // In production, this can be overridden by the hosting provider's script injection
+    window.BACKEND_URL = window.BACKEND_URL || "http://localhost:5000";
 
     // Init Firebase
     firebase.initializeApp(window.firebaseConfig);

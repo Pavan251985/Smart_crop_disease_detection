@@ -509,7 +509,8 @@ async function predict(imageBuffer) {
             contentType: 'image/jpeg'
         });
 
-        const response = await axios.post('http://localhost:8000/predict', form, {
+        const pythonBackendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:8000/predict';
+        const response = await axios.post(pythonBackendUrl, form, {
             headers: {
                 ...form.getHeaders()
             },
